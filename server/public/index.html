@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soundpad Remote</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #111; color: #eee; }
+  h1 { font-size: 20px; }
+  .row { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+  input { padding: 8px; border-radius: 6px; border: 1px solid #444; background: #222; color: #eee; flex: 1; }
+  button { padding: 10px 14px; border-radius: 8px; border: none; background: #2b6cb0; color: #fff; cursor: pointer; }
+  button:active { background: #1a4f8b; }
+  #status { min-height: 20px; color: #8f8; font-size: 14px; }
+  #keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 12px; }
+  #keys button { height: 56px; }
+  #keys button .combo { display: block; font-size: 11px; color: #bcd; margin-top: 3px; }
+</style>
+</head>
+<body>
+  <h1>Soundpad Remote</h1>
+  <div class="row">
+    <input id="token" type="text" placeholder="Токен из config.json" autocomplete="off">
+    <button id="reload">Загрузить</button>
+  </div>
+  <div id="status"></div>
+  <div id="keys"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const token = () => $('token').value.trim();
+
+  function setStatus(s, ok) {
+    const el = $('status');
+    el.textContent = s;
+    el.style.color = ok ? '#8f8' : '#f88';
+  }
+
+  async function load() {
+    const res = await fetch('/keys', { headers: token() ? { 'X-Key': token() } : {} });
+    if (res.status !== 200) { setStatus('Ошибка ' + res.status + ' (токен?)', false); return; }
+    const data = await res.json();
+    const c = $('keys');
+    c.innerHTML = '';
+    for (const k of data.keys) {
+      const b = document.createElement('button');
+      const label = document.createElement('span');
+      label.textContent = k.label;
+      const combo = document.createElement('span');
+      combo.className = 'combo';
+      combo.textContent = k.combo;
+      b.appendChild(label);
+      b.appendChild(combo);
+      b.onclick = () => press(k.id);
+      c.appendChild(b);
+    }
+    setStatus('Кнопок: ' + data.keys.length, true);
+  }
+
+  async function press(id) {
+    const res = await fetch('/press?id=' + encodeURIComponent(id), {
+      method: 'POST',
+      headers: token() ? { 'X-Key': token() } : {}
+    });
+    const data = await res.json();
+    if (res.status === 200) setStatus('OK: ' + id, true);
+    else setStatus('ERR: ' + JSON.stringify(data), false);
+  }
+
+  $('reload').onclick = load;
+  $('token').addEventListener('keydown', (e) => { if (e.key === 'Enter') load(); });
+</script>
+</body>
+</html>

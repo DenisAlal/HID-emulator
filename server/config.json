@@ -1,0 +1,11 @@
+{
+  "host": "HOST",
+  "port": 8080,
+  "token": "secret",
+  "keys": {
+    "sound1": { "label": "Sound 1", "combo": "ctrl+alt+f1" },
+    "sound2": { "label": "Sound 2", "combo": "ctrl+alt+f2" },
+    "sound3": { "label": "Sound 3", "combo": "ctrl+alt+f3" },
+    "stop":   { "label": "Stop",   "combo": "ctrl+alt+f4" }
+  }
+}

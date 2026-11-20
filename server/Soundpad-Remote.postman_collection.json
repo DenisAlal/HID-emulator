@@ -1,0 +1,93 @@
+{
+  "info": {
+    "name": "Soundpad Remote Server",
+    "description": "Тесты HTTP-API сервера Soundpad Remote.\n\nПеременные коллекции:\n- host — IP/хост ПК с сервером (localhost для локальной проверки, или локальный IP ПК, например 192.168.1.50, для проверки с телефона/платы);\n- port — порт из config.json (по умолчанию 8080);\n- token — токен из config.json.\n\nКомбинации клавиш задаются в config.json (id -> combo).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "host", "value": "localhost", "type": "string" },
+    { "key": "port", "value": "45678", "type": "string" },
+    { "key": "token", "value": "change-me-to-a-secret", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. List keys",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Key", "value": "{{token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/keys",
+          "protocol": "http",
+          "host": ["{{host}}"],
+          "port": "{{port}}",
+          "path": ["keys"]
+        },
+        "description": "Возвращает список настроенных кнопок: {id, label, combo}. Эти данные приложение/плата используют, чтобы построить кнопки."
+      }
+    },
+    {
+      "name": "2. Press by id",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-Key", "value": "{{token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/press?id=sound1",
+          "protocol": "http",
+          "host": ["{{host}}"],
+          "port": "{{port}}",
+          "path": ["press"],
+          "query": [
+            { "key": "id", "value": "sound1" }
+          ]
+        },
+        "description": "Нажимает комбинацию, привязанную к id «sound1» в config.json. Рекомендуемый способ — id меняется только в конфиге."
+      }
+    },
+    {
+      "name": "3. Press by combo (JSON body)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-Key", "value": "{{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"combo\": \"ctrl+alt+f1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://{{host}}:{{port}}/press",
+          "protocol": "http",
+          "host": ["{{host}}"],
+          "port": "{{port}}",
+          "path": ["press"]
+        },
+        "description": "Нажимает произвольную комбинацию. Удобно для проверки любых клавиш без правки конфига. Можно также передать {\"id\":\"sound1\"}."
+      }
+    },
+    {
+      "name": "4. Unauthorized (без токена)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/keys",
+          "protocol": "http",
+          "host": ["{{host}}"],
+          "port": "{{port}}",
+          "path": ["keys"]
+        },
+        "description": "Запрос без заголовка X-Key. Должен вернуть 401 Unauthorized — проверка, что токен работает."
+      }
+    }
+  ]
+}
