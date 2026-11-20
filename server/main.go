@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -37,6 +38,7 @@ var (
 	user32               = syscall.NewLazyDLL("user32.dll")
 	procSendInput        = user32.NewProc("SendInput")
 	procGetAsyncKeyState = user32.NewProc("GetAsyncKeyState")
+	procGetKeyState      = user32.NewProc("GetKeyState")
 )
 
 const (
@@ -170,7 +172,56 @@ func resolveVk(name string) (uint16, error) {
 	return 0, fmt.Errorf("unknown key: %s", name)
 }
 
+// expandNumAlias turns the convenience names num10..num29 into real combos.
+//
+//	num10..num19 -> numpad0..numpad9
+//	num20..num29 -> ctrl+numpad0..ctrl+numpad9
+//
+// Numpad keys need NumLock on; set "numlock": true in config.json and the
+// server turns it on automatically before sending such a combo.
+func expandNumAlias(combo string) string {
+	c := strings.ToLower(strings.TrimSpace(combo))
+	if !strings.HasPrefix(c, "num") {
+		return combo
+	}
+	n, err := strconv.Atoi(strings.TrimPrefix(c, "num"))
+	if err != nil {
+		return combo
+	}
+	switch {
+	case n >= 10 && n <= 19:
+		return fmt.Sprintf("numpad%d", n-10)
+	case n >= 20 && n <= 29:
+		return fmt.Sprintf("ctrl+numpad%d", n-20)
+	}
+	return combo
+}
+
+const vkNumLock = 0x90
+
+// numLockOn reads the NumLock toggle state. GetKeyState (unlike
+// GetKeyboardState) reflects the current system-wide state for toggle keys.
+func numLockOn() bool {
+	r, _, _ := procGetKeyState.Call(vkNumLock)
+	return uint16(r)&0x0001 != 0
+}
+
+// ensureNumLock turns NumLock on if it is off. Without it numpad keys behave
+// as arrows/Home/End for games that read scancodes.
+func ensureNumLock() {
+	if numLockOn() {
+		return
+	}
+	_ = sendEvents([]keyEvent{{vk: vkNumLock}, {vk: vkNumLock, up: true}})
+	time.Sleep(10 * time.Millisecond)
+}
+
 func injectCombo(combo string) error {
+	combo = expandNumAlias(combo)
+	if forceNumLock && strings.Contains(strings.ToLower(combo), "numpad") {
+		ensureNumLock()
+	}
+
 	var toks []string
 	for _, p := range strings.Split(combo, "+") {
 		t := strings.ToLower(strings.TrimSpace(p))
@@ -249,6 +300,10 @@ var (
 	logFile    *os.File
 	httpServer *http.Server
 
+	// forceNumLock mirrors config.json "numlock": turn NumLock on before
+	// sending a numpad combo.
+	forceNumLock bool
+
 	// trayMode is set at build time for the tray flavor:
 	//   go build -ldflags "-H=windowsgui -X main.trayMode=true" -o server-tray.exe .
 	trayMode = "false"
@@ -281,13 +336,17 @@ func setupLogging(toStdout bool) {
 type keyDef struct {
 	Label string `json:"label"`
 	Combo string `json:"combo"`
+	// Order controls the position in /keys (lower first). Optional; ties fall
+	// back to a natural sort of the id, so sound2 comes before sound10.
+	Order int `json:"order"`
 }
 
 type config struct {
-	Host  string            `json:"host"`
-	Port  int               `json:"port"`
-	Token string            `json:"token"`
-	Keys  map[string]keyDef `json:"keys"`
+	Host    string            `json:"host"`
+	Port    int               `json:"port"`
+	Token   string            `json:"token"`
+	NumLock bool              `json:"numlock"`
+	Keys    map[string]keyDef `json:"keys"`
 }
 
 func exeDir() string {
@@ -317,6 +376,7 @@ func loadConfig() (*config, error) {
 	if c.Keys == nil {
 		c.Keys = map[string]keyDef{}
 	}
+	forceNumLock = c.NumLock
 	return &c, nil
 }
 
@@ -353,6 +413,41 @@ func authorized(c *config, r *http.Request) bool {
 	return false
 }
 
+func isDigit(b byte) bool { return b >= '0' && b <= '9' }
+
+// naturalLess orders ids like sound2 before sound10 (plain string sort puts
+// sound10 first because '1' < '2').
+func naturalLess(a, b string) bool {
+	ia, ib := 0, 0
+	for ia < len(a) && ib < len(b) {
+		if isDigit(a[ia]) && isDigit(b[ib]) {
+			ja, jb := ia, ib
+			for ja < len(a) && isDigit(a[ja]) {
+				ja++
+			}
+			for jb < len(b) && isDigit(b[jb]) {
+				jb++
+			}
+			na := strings.TrimLeft(a[ia:ja], "0")
+			nb := strings.TrimLeft(b[ib:jb], "0")
+			if len(na) != len(nb) {
+				return len(na) < len(nb)
+			}
+			if na != nb {
+				return na < nb
+			}
+			ia, ib = ja, jb
+			continue
+		}
+		if a[ia] != b[ib] {
+			return a[ia] < b[ib]
+		}
+		ia++
+		ib++
+	}
+	return len(a)-ia < len(b)-ib
+}
+
 func handleKeys(c *config, w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if !authorized(c, r) {
@@ -364,7 +459,13 @@ func handleKeys(c *config, w http.ResponseWriter, r *http.Request) {
 	for id := range c.Keys {
 		ids = append(ids, id)
 	}
-	sort.Strings(ids)
+	sort.SliceStable(ids, func(i, j int) bool {
+		oi, oj := c.Keys[ids[i]].Order, c.Keys[ids[j]].Order
+		if oi != oj {
+			return oi < oj
+		}
+		return naturalLess(ids[i], ids[j])
+	})
 
 	type keyOut struct {
 		ID    string `json:"id"`

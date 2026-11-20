@@ -1,10 +1,10 @@
 #include "net.h"
-#include "config.h"
+#include "cfg.h"
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
 static String baseUrl() {
-    return "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT);
+    return "http://" + cfg().host + ":" + String((unsigned)cfg().port);
 }
 
 bool netFetchKeys(KeyDef* out, int maxCount, int& count) {
@@ -12,7 +12,7 @@ bool netFetchKeys(KeyDef* out, int maxCount, int& count) {
 
     HTTPClient http;
     http.begin(baseUrl() + "/keys");
-    http.addHeader("X-Key", SERVER_TOKEN);
+    http.addHeader("X-Key", cfg().token);
     http.setTimeout(5000);
 
     int code = http.GET();
@@ -44,7 +44,7 @@ bool netFetchKeys(KeyDef* out, int maxCount, int& count) {
 bool netPressKey(const String& id) {
     HTTPClient http;
     http.begin(baseUrl() + "/press?id=" + id);
-    http.addHeader("X-Key", SERVER_TOKEN);
+    http.addHeader("X-Key", cfg().token);
     http.setTimeout(5000);
 
     int code = http.POST("");

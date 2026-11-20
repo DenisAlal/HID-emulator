@@ -1,2 +1,10 @@
+# build / run artifacts
+server/*.exe
 server/server.log
-server/server.exe
+server/backup.spl
+
+# local Android config (contains machine-specific paths)
+android/.idea/
+android/local.properties
+android/.gradle/
+android/app/build/

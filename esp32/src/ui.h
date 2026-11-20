@@ -10,8 +10,8 @@ void ui_set_wifi(bool connected, int rssi);
 // Тянет /keys с сервера и перерисовывает сетку кнопок.
 void ui_refresh_keys();
 
-// Показывает короткое всплывающее сообщение (тост).
-void ui_show_toast(const char* text);
+// Индикатор последнего HTTP-запроса в верхней панели: true = зелёный, false = красный.
+void ui_set_status(bool ok);
 
 // Отладочный оверлей тача (для калибровки).
 void ui_touch_debug_init();

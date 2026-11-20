@@ -4,6 +4,8 @@
 #include <LovyanGFX.hpp>
 
 #include "config.h"
+#include "cfg.h"
+#include "wifi_mgr.h"
 #include "ui.h"
 
 // ============================================================
@@ -128,19 +130,6 @@ static void my_touchpad_read(lv_indev_drv_t* drv, lv_indev_data_t* data) {
 }
 
 // ============================================================
-//  Wi-Fi
-// ============================================================
-static bool connect_wifi() {
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    uint32_t t = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - t < 15000) {
-        delay(100);
-    }
-    return WiFi.status() == WL_CONNECTED;
-}
-
-// ============================================================
 //  Setup / Loop
 // ============================================================
 void setup() {
@@ -166,23 +155,19 @@ void setup() {
     indev_drv.read_cb = my_touchpad_read;
     lv_indev_drv_register(&indev_drv);
 
+    cfg_load();
     ui_init();
 
 #if TOUCH_DEBUG
     ui_touch_debug_init();
 #endif
 
-    bool ok = connect_wifi();
-    ui_set_wifi(ok, WiFi.RSSI());
-    if (ok) {
-        ui_refresh_keys();
-    } else {
-        ui_show_toast("No WiFi");
-    }
+    wifi_connect();
 }
 
 void loop() {
     lv_timer_handler();
+    wifi_tick();
 #if TOUCH_DEBUG
     ui_touch_debug_update(g_touch_x, g_touch_y, g_touch_pressed);
 #endif
