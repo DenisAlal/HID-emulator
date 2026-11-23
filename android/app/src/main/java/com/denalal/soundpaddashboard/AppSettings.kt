@@ -1,6 +1,7 @@
 package com.denalal.soundpaddashboard
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * Small SharedPreferences wrapper. Only what the app actually needs:
@@ -13,17 +14,17 @@ class AppSettings(context: Context) {
 
     var host: String
         get() = prefs.getString("host", "") ?: ""
-        set(value) = prefs.edit().putString("host", value.trim()).apply()
+        set(value) = prefs.edit { putString("host", value.trim()) }
 
     var port: String
         get() = prefs.getString("port", "45454") ?: "45454"
-        set(value) = prefs.edit().putString("port", value.trim()).apply()
+        set(value) = prefs.edit { putString("port", value.trim()) }
 
     var token: String
         get() = prefs.getString("token", "secret") ?: "secret"
-        set(value) = prefs.edit().putString("token", value).apply()
+        set(value) = prefs.edit { putString("token", value) }
 
     var dark: Boolean
         get() = prefs.getBoolean("dark", true)
-        set(value) = prefs.edit().putBoolean("dark", value).apply()
+        set(value) = prefs.edit { putBoolean("dark", value) }
 }

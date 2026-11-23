@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+  <defs><style>
+    .cut { fill:none; stroke:#111; stroke-width:.5; stroke-linejoin:round; }
+    .fold { fill:none; stroke:#777; stroke-width:.4; stroke-dasharray:2.2 1.6; }
+    .screen { fill:none; stroke:#c22; stroke-width:.55; }
+    .board { fill:none; stroke:#1680a8; stroke-width:.4; stroke-dasharray:2.2 1.6; }
+    .tile { fill:none; stroke:#8a3fa0; stroke-width:.45; stroke-dasharray:1.5 1.2; }
+    .txt { font-family:Arial,sans-serif; font-size:3.3px; fill:#222; }
+    .small { font-family:Arial,sans-serif; font-size:2.8px; fill:#333; }
+    .title { font-family:Arial,sans-serif; font-size:5px; font-weight:bold; fill:#111; }
+  </style></defs>
+  <rect x=".5" y=".5" width="209" height="296" fill="white" stroke="#bbb" stroke-width=".3"/>
+  <text x="8" y="12" class="title">Цельный корпус CYD — лист 2/2 (правый)</text>
+  <text x="8" y="18" class="small">A4, книжная ориентация, 100% / Actual size. Не подгонять под страницу.</text>
+  <g transform="translate(-190 0)">
+    <path class="cut" d="M75 95 L145 95 L138.1 91 L173.1 30.4 L185.5 28.5 L250.5 89.1 L245 95 L333.9 95 L345.9 101 L345.9 195 L333.9 201 L245 201 L250.5 206.9 L185.5 267.5 L173.1 265.6 L138.1 205 L145 201 L75 201 Z"/>
+    <path class="fold" d="M145 95 V201 M245 95 V201 M333.9 95 V201 M145 95 H245 M145 201 H245 M145 95 L180 34.4 L245 95 M145 201 L180 261.6 L245 201"/>
+    <rect class="board" x="85" y="104.75" width="50" height="86.5"/>
+    <rect class="screen" x="88.5" y="119" width="43" height="58" rx="1.5"/>
+  </g>
+  <!-- Paper-template seam: trim the 10 mm left strip, then join at local x=10 mm. -->
+  <path class="tile" d="M10 22 V275 M7 22 H13 M7 275 H13"/>
+  <text x="8" y="284" class="small">Фиолетовый пунктир — стык бумажных листов, не линия реза картона.</text>
+  <text x="8" y="290" class="small">Обрезать лист по x=10 мм; совместить с листом 1 по верхней и нижней меткам, склеить сзади.</text>
+</svg>

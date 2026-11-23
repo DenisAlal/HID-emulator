@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297">
+  <defs>
+    <style>
+      .cut { fill: none; stroke: #111; stroke-width: 0.5; stroke-linejoin: round; }
+      .fold { fill: none; stroke: #777; stroke-width: 0.4; stroke-dasharray: 2.2 1.6; }
+      .screen { fill: none; stroke: #c22; stroke-width: 0.55; }
+      .board { fill: none; stroke: #1680a8; stroke-width: 0.4; stroke-dasharray: 2.2 1.6; }
+      .txt { font-family: Arial, sans-serif; font-size: 4px; fill: #111; }
+      .small { font-family: Arial, sans-serif; font-size: 3.3px; fill: #333; }
+      .title { font-family: Arial, sans-serif; font-size: 6px; font-weight: bold; fill: #111; }
+    </style>
+  </defs>
+  <rect x="0.5" y="0.5" width="419" height="296" fill="white" stroke="#bbb" stroke-width="0.3"/>
+  <text x="8" y="12" class="title">CYD ESP32-2432S028 — цельная развёртка корпуса из картона</text>
+  <text x="8" y="19" class="small">A3, альбомная ориентация, печать 100% / Actual size. Отключить «подогнать под страницу».</text>
+
+  <!-- One connected blank outline: front + base + rear + closing tab, with both end walls and their glue flaps. -->
+  <path class="cut" d="
+    M 75 95
+    L 145 95
+    L 138.1 91
+    L 173.1 30.4
+    L 185.5 28.5
+    L 250.5 89.1
+    L 245 95
+    L 333.9 95
+    L 345.9 101
+    L 345.9 195
+    L 333.9 201
+    L 245 201
+    L 250.5 206.9
+    L 185.5 267.5
+    L 173.1 265.6
+    L 138.1 205
+    L 145 201
+    L 75 201
+    Z"/>
+
+  <!-- Main folds: front/base, base/rear, rear/front closing flap, and both end-wall hinges. -->
+  <path class="fold" d="M 145 95 V 201 M 245 95 V 201 M 333.9 95 V 201 M 145 95 H 245 M 145 201 H 245"/>
+  <!-- End-wall glue flaps: fold along the triangle sides. -->
+  <path class="fold" d="M 145 95 L 180 34.4 L 245 95 M 145 201 L 180 261.6 L 245 201"/>
+
+  <!-- Illustrative board footprint and screen cutout on the front panel (panel x=75..145, y=95..201). -->
+  <rect class="board" x="85" y="104.75" width="50" height="86.5"/>
+  <rect class="screen" x="88.5" y="119" width="43" height="58" rx="1.5"/>
+
+  <!-- Dimensions / instructions -->
+  <text x="8" y="278" class="small">Чёрная сплошная — вырезать по внешнему контуру · серая пунктирная — продавить и согнуть · красное — вырез экрана · синее — контур платы.</text>
+  <text x="8" y="284" class="small">Картон 1–2 мм; передний скос 60° к столу; основание 100 × 106 мм. Сверьте контур платы и вырез экрана перед резкой.</text>
+  <text x="8" y="290" class="small">Согните по пунктиру, приклейте боковые клапаны внутрь и клапан стыка к передней стенке. USB-отверстие вырежьте после примерки.</text>
+
+  <!-- Scale check -->
+  <path class="cut" d="M 358 282 H 408 M 358 279 V 285 M 408 279 V 285"/>
+  <text x="383" y="277" text-anchor="middle" class="small">контроль масштаба — 50 мм</text>
+</svg>
