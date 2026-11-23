@@ -1,4 +1,4 @@
-package com.denalal.soundpaddashboard.ui
+package com.denalal.soundpaddashboard.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

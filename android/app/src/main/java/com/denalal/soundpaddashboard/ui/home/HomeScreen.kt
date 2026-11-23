@@ -1,4 +1,4 @@
-package com.denalal.soundpaddashboard.ui
+package com.denalal.soundpaddashboard.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.denalal.soundpaddashboard.KeyItem
+import com.denalal.soundpaddashboard.data.model.KeyItem
 
 @Composable
 fun HomeScreen(
