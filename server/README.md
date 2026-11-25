@@ -61,6 +61,16 @@ build.bat        # собирает оба бинарника
   "port": 45678,
   "token": "change-me-to-a-secret",
   "numlock": true,
+  "stats": {
+    "show": {
+      "cpu_load": true,
+      "cpu_temp": true,
+      "gpu_load": true,
+      "gpu_temp": true,
+      "vram": true,
+      "ram": true
+    }
+  },
   "keys": {
     "sound1": { "label": "Sound 1", "combo": "ctrl+alt+f1" },
     "stop":   { "label": "Stop",   "combo": "ctrl+alt+f4" }
@@ -145,12 +155,79 @@ powershell -ExecutionPolicy Bypass -File gen-config.ps1 -SplPath "E:\...\backup.
 | Метод | Путь | Что делает |
 |-------|------|------------|
 | `GET /keys` | список кнопок `{id,label,combo}` |
+| `GET /stats` | метрики ПК: CPU/GPU/RAM, какие показывать |
 | `POST /press` | нажать. Тело JSON `{"id":"sound1"}` или `{"combo":"ctrl+alt+f1"}` |
 | `POST /press?id=sound1` | нажать по id |
 | `POST /press?combo=ctrl%2Balt%2Bf1` | нажать произвольную комбинацию |
 | `GET /` | тестовая веб-страница |
 
 > В query-строке `+` кодируется как `%2B`. Проще использовать `id` или JSON-тело.
+
+## Метрики ПК (`/stats`)
+
+`GET /stats` отдаёт загрузку CPU/GPU, температуру, VRAM и RAM. ESP32 опрашивает
+его раз в секунду, пока открыта страница `PC`.
+
+Что показывать на экране, задаётся в `config.json`:
+
+```json
+"stats": {
+  "show": {
+    "cpu_load": true,
+    "cpu_temp": true,
+    "gpu_load": true,
+    "gpu_temp": true,
+    "vram": true,
+    "ram": true
+  }
+}
+```
+
+- Все метрики берутся из HTTP-сервера LibreHardwareMonitor (`data.json`,
+  по умолчанию порт 8085): CPU load/temp/freq, GPU load/temp/VRAM, RAM.
+- Без запущенного LHM `/stats` вернёт `ok:false`, а на экране будут `--`.
+- Сервер не запускает `nvidia-smi` и `tasklist` — никаких дочерних консольных
+  окон.
+- После правки `config.json` сервер нужно перезапустить.
+
+## Автозапуск LibreHardwareMonitor
+
+Если положить папку `LibreHardwareMonitor` рядом с сервером
+(`server/LibreHardwareMonitor/LibreHardwareMonitor.exe`), сервер запустит её
+вместе с собой и закроет при выходе. Уже запущенный LHM он не трогает.
+
+```json
+"lhm": {
+  "auto_start": true,
+  "path": "",
+  "http_port": 8085
+}
+```
+
+- `auto_start` — по умолчанию `true`;
+- `path` — необязательный путь, если exe лежит в другом месте;
+- `http_port` — порт HTTP-сервера LHM, с которого читается `data.json`
+  (по умолчанию 8085).
+
+LHM требует прав администратора. Запускай `server-tray.exe` **от имени
+администратора**, иначе Windows не даст запустить LHM из обычного процесса.
+В LHM один раз включи **Start Minimized**, чтобы окно не мешало.
+
+Уже запущенный LHM определяется по его HTTP-серверу (`data.json`), без
+`tasklist`.
+
+## Запуск
+
+| Файл / команда | Что делает |
+|----------------|------------|
+| `server.exe` | консоль: кнопки + метрики ПК (`/stats`) |
+| `server-tray.exe` | трей: кнопки + метрики ПК (`/stats`) |
+| `server-tray.exe --no-monitor` | трей без LHM и `/stats` |
+| `start-tray.bat` | запустить полный трей |
+| `start-tray-lite.bat` | запустить трей с `--no-monitor` |
+
+`--no-monitor` отключает автозапуск LHM и отдаёт 404 на `/stats`; `/keys` и
+`/press` работают как обычно. Отдельных lite-exe больше нет — только флаг.
 
 ## Проверка
 

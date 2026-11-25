@@ -2,6 +2,7 @@
 server/*.exe
 server/server.log
 server/backup.spl
+server/LibreHardwareMonitor/
 
 # local Android config (contains machine-specific paths)
 android/.idea/

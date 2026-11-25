@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -346,6 +347,8 @@ type config struct {
 	Port    int               `json:"port"`
 	Token   string            `json:"token"`
 	NumLock bool              `json:"numlock"`
+	Stats   *statsConfig      `json:"stats"`
+	LHM     *lhmConfig        `json:"lhm"`
 	Keys    map[string]keyDef `json:"keys"`
 }
 
@@ -375,6 +378,19 @@ func loadConfig() (*config, error) {
 	}
 	if c.Keys == nil {
 		c.Keys = map[string]keyDef{}
+	}
+	if c.Stats == nil {
+		c.Stats = &statsConfig{Show: defaultStatsShow()}
+	}
+	if c.LHM == nil {
+		c.LHM = &lhmConfig{}
+	}
+	if c.LHM.AutoStart == nil {
+		v := true
+		c.LHM.AutoStart = &v
+	}
+	if c.LHM.HTTPPort == 0 {
+		c.LHM.HTTPPort = 8085
 	}
 	forceNumLock = c.NumLock
 	return &c, nil
@@ -558,6 +574,8 @@ func newHandler(c *config) http.Handler {
 			handleKeys(c, w, r)
 		case "/press":
 			handlePress(c, w, r)
+		case "/stats":
+			handleStats(c, w, r)
 		default:
 			writeJSON(w, 404, map[string]string{"error": "not found"})
 		}
@@ -636,6 +654,8 @@ func runTray() {
 		logger.Fatalf("config error: %v", err)
 	}
 
+	startLHM(c)
+
 	go startServer(c)
 
 	url := fmt.Sprintf("http://localhost:%d", c.Port)
@@ -665,6 +685,7 @@ func runTray() {
 		}
 	}, func() {
 		logger.Printf("server stopped")
+		stopLHM()
 		if httpServer != nil {
 			_ = httpServer.Close()
 		}
@@ -680,6 +701,22 @@ func runConsole() {
 	if err != nil {
 		logger.Fatalf("config error: %v", err)
 	}
+
+	startLHM(c)
+	defer stopLHM()
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+	go func() {
+		<-sig
+		logger.Printf("shutdown requested")
+		if httpServer != nil {
+			_ = httpServer.Close()
+		}
+		stopLHM()
+		os.Exit(0)
+	}()
+
 	startServer(c) // blocks
 }
 
@@ -729,6 +766,9 @@ func main() {
 		}
 		if a == "--tray" {
 			mode = "tray"
+		}
+		if a == "--no-monitor" {
+			monitoringEnabled = false
 		}
 	}
 	if trayMode == "true" {

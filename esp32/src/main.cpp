@@ -23,7 +23,7 @@ public:
             auto cfg = _bus.config();
             cfg.spi_host = VSPI_HOST;
             cfg.spi_mode = 0;
-            cfg.freq_write = 27000000;   // при помехах можно снизить до 20000000
+            cfg.freq_write = TFT_SPI_HZ;   // см. config.h: 27/40/60 МГц
             cfg.freq_read = 16000000;
             cfg.spi_3wire = false;
             cfg.use_lock = true;
@@ -102,17 +102,30 @@ bool g_touch_pressed = false;
 // ============================================================
 //  LVGL: буфер, flush, тач
 // ============================================================
-#define BUF_ROWS 10
+#define BUF_ROWS TFT_BUF_ROWS
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[320 * BUF_ROWS];
+
+#if PERF_SERIAL
+static uint32_t g_flush_us = 0;
+static uint32_t g_flush_calls = 0;
+static uint32_t g_report_ms = 0;
+#endif
 
 static void my_disp_flush(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* color_p) {
     uint32_t w = area->x2 - area->x1 + 1;
     uint32_t h = area->y2 - area->y1 + 1;
+#if PERF_SERIAL
+    uint32_t t0 = micros();
+#endif
     tft.startWrite();
     tft.setAddrWindow(area->x1, area->y1, w, h);
     tft.pushPixels((uint16_t*)color_p, w * h);
     tft.endWrite();
+#if PERF_SERIAL
+    g_flush_us += micros() - t0;
+    g_flush_calls++;
+#endif
     lv_disp_flush_ready(drv);
 }
 
@@ -168,8 +181,19 @@ void setup() {
 void loop() {
     lv_timer_handler();
     wifi_tick();
+    ui_weather_tick();
+    ui_stats_tick();
 #if TOUCH_DEBUG
     ui_touch_debug_update(g_touch_x, g_touch_y, g_touch_pressed);
+#endif
+#if PERF_SERIAL
+    if (millis() - g_report_ms >= 2000) {
+        g_report_ms = millis();
+        float avg = g_flush_calls ? (g_flush_us / 1000.0f / g_flush_calls) : 0.0f;
+        Serial.printf("flush: %.2f ms/call, calls=%u\n", avg, (unsigned)g_flush_calls);
+        g_flush_us = 0;
+        g_flush_calls = 0;
+    }
 #endif
     delay(5);
 }

@@ -3,11 +3,23 @@
   "port": 45454,
   "token": "secret",
   "numlock": true,
+  "stats": {
+    "show": {
+      "cpu_load": true,
+      "cpu_temp": true,
+      "gpu_load": true,
+      "gpu_temp": true,
+      "vram": true,
+      "ram": true
+    }
+  },
+  "lhm": {
+    "auto_start": true,
+    "path": "",
+    "http_port": 8085
+  },
   "keys": {
     "stop": { "label": "Stop", "combo": "numpad0", "order": 0 },
-    "sound1": { "label": "ba dum tss ba dum tss ba dum tss ba dum tss", "combo": "numpad1", "order": 1 },
-    "sound2": { "label": "firework", "combo": "numpad2", "order": 2 },
-    "sound3": { "label": "cue", "combo": "numpad3", "order": 3 },
-    "sound4": { "label": "scream", "combo": "numpad4", "order": 4 }
+    "sound1": { "label": "sound1", "combo": "numpad1", "order": 1 }
   }
 }
