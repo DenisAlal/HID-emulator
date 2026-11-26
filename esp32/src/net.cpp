@@ -116,7 +116,7 @@ bool netFetchStats(PcStats& out) {
     HTTPClient http;
     http.begin(baseUrl() + "/stats");
     http.addHeader("X-Key", cfg().token);
-    http.setTimeout(2000);
+    http.setTimeout(1500);
 
     int code = http.GET();
     if (code != 200) {

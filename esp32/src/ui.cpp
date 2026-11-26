@@ -82,6 +82,8 @@ struct Ring {
 static lv_obj_t* g_stats_view = nullptr;
 static lv_obj_t* g_stats_grid = nullptr;
 static lv_obj_t* g_stats_msg = nullptr;
+static lv_obj_t* g_stats_retry = nullptr;
+static bool g_stats_offline = false;
 static Ring g_ring_cpu_load;
 static Ring g_ring_cpu_temp;
 static Ring g_ring_ram;
@@ -154,11 +156,12 @@ static void next_cb(lv_event_t* e) { if (g_page + 1 < g_pages) show_page(g_page 
 
 static void refresh_cb(lv_event_t* e) {
     if (g_view == VIEW_WEATHER) ui_weather_refresh();
-    else if (g_view == VIEW_STATS) ui_stats_refresh();
+    else if (g_view == VIEW_STATS) { g_stats_offline = false; ui_stats_refresh(); }
     else ui_refresh_keys();
 }
 static void weather_cb(lv_event_t* e) { ui_show_weather(g_view != VIEW_WEATHER); }
 static void stats_cb(lv_event_t* e) { ui_show_stats(g_view != VIEW_STATS); }
+static void stats_retry_cb(lv_event_t* e) { g_stats_offline = false; ui_stats_refresh(); }
 static void settings_cb(lv_event_t* e) { ui_show_settings(); }
 static void back_cb(lv_event_t* e) { ui_hide_settings(); }
 
@@ -936,6 +939,8 @@ static void ui_stats_refresh() {
     g_stats_busy = true;
     g_stats_last_try = millis();
 
+    if (g_stats_retry) lv_obj_add_flag(g_stats_retry, LV_OBJ_FLAG_HIDDEN);
+
     if (g_stats_msg && !g_pc.ok) {
         lv_label_set_text(g_stats_msg, "Loading...");
         lv_obj_clear_flag(g_stats_msg, LV_OBJ_FLAG_HIDDEN);
@@ -945,27 +950,17 @@ static void ui_stats_refresh() {
     bool ok = netFetchStats(g_pc);
     g_stats_busy = false;
 
-    if (ok) {
-        if (!g_pc.ok) {
-            if (g_stats_msg) {
-                lv_label_set_text(g_stats_msg, "LHM off");
-                lv_obj_clear_flag(g_stats_msg, LV_OBJ_FLAG_HIDDEN);
-            }
-            ring_show(g_ring_cpu_load, false);
-            ring_show(g_ring_cpu_temp, false);
-            ring_show(g_ring_ram, false);
-            ring_show(g_ring_gpu_load, false);
-            ring_show(g_ring_gpu_temp, false);
-            ring_show(g_ring_vram, false);
-        } else {
-            if (g_stats_msg) lv_obj_add_flag(g_stats_msg, LV_OBJ_FLAG_HIDDEN);
-            apply_stats_show();
-        }
-    } else if (!g_pc.ok) {
+    if (ok && g_pc.ok) {
+        g_stats_offline = false;
+        if (g_stats_msg) lv_obj_add_flag(g_stats_msg, LV_OBJ_FLAG_HIDDEN);
+        apply_stats_show();
+    } else {
+        g_stats_offline = true;
         if (g_stats_msg) {
-            lv_label_set_text(g_stats_msg, "Server offline");
+            lv_label_set_text(g_stats_msg, ok ? "LHM off" : "Server offline");
             lv_obj_clear_flag(g_stats_msg, LV_OBJ_FLAG_HIDDEN);
         }
+        if (g_stats_retry) lv_obj_clear_flag(g_stats_retry, LV_OBJ_FLAG_HIDDEN);
         ring_show(g_ring_cpu_load, false);
         ring_show(g_ring_cpu_temp, false);
         ring_show(g_ring_ram, false);
@@ -987,10 +982,18 @@ void ui_show_stats(bool show) {
         if (g_stats_view) lv_obj_clear_flag(g_stats_view, LV_OBJ_FLAG_HIDDEN);
         if (g_lbl_stats) lv_label_set_text(g_lbl_stats, LV_SYMBOL_LIST);
         if (g_lbl_weather) lv_label_set_text(g_lbl_weather, "W");
-        if (!g_pc.ok || millis() - g_pc.updatedMs > 2000) {
-            ui_stats_refresh();
+        if (g_pc.ok) {
+            if (millis() - g_pc.updatedMs > 2000) {
+                g_stats_offline = false;
+                ui_stats_refresh();
+            } else {
+                apply_stats_show();
+            }
+        } else if (g_stats_offline) {
+            if (g_stats_msg) lv_obj_clear_flag(g_stats_msg, LV_OBJ_FLAG_HIDDEN);
+            if (g_stats_retry) lv_obj_clear_flag(g_stats_retry, LV_OBJ_FLAG_HIDDEN);
         } else {
-            apply_stats_show();
+            ui_stats_refresh();
         }
     } else {
         g_view = VIEW_KEYS;
@@ -1005,9 +1008,8 @@ void ui_show_stats(bool show) {
 }
 
 void ui_stats_tick() {
-    if (g_view != VIEW_STATS || g_stats_busy) return;
-    uint32_t gap = g_pc.ok ? 1000UL : 5000UL;
-    if (millis() - g_stats_last_try < gap) return;
+    if (g_view != VIEW_STATS || g_stats_busy || g_stats_offline) return;
+    if (millis() - g_stats_last_try < 1000UL) return;
     ui_stats_refresh();
 }
 
@@ -1153,6 +1155,20 @@ static void build_stats_view() {
     lv_obj_add_style(g_stats_msg, &st_dim, 0);
     lv_obj_align(g_stats_msg, LV_ALIGN_TOP_MID, 0, 100);
     lv_obj_add_flag(g_stats_msg, LV_OBJ_FLAG_HIDDEN);
+
+    g_stats_retry = lv_btn_create(g_stats_view);
+    lv_obj_set_size(g_stats_retry, 120, 36);
+    lv_obj_align(g_stats_retry, LV_ALIGN_TOP_MID, 0, 128);
+    lv_obj_add_style(g_stats_retry, &st_card, 0);
+    lv_obj_set_style_shadow_width(g_stats_retry, 0, 0);
+    lv_obj_add_event_cb(g_stats_retry, stats_retry_cb, LV_EVENT_CLICKED, nullptr);
+    {
+        lv_obj_t* l = lv_label_create(g_stats_retry);
+        lv_label_set_text(l, "Retry");
+        lv_obj_add_style(l, &st_text, 0);
+        lv_obj_center(l);
+    }
+    lv_obj_add_flag(g_stats_retry, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_add_flag(g_stats_view, LV_OBJ_FLAG_HIDDEN);
 }
