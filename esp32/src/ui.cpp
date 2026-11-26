@@ -59,6 +59,9 @@ static lv_obj_t* g_btn_stats = nullptr;
 static lv_obj_t* g_lbl_stats = nullptr;
 static View      g_view = VIEW_KEYS;
 static lv_obj_t* g_wx_view = nullptr;
+static lv_obj_t* g_wx_hero = nullptr;
+static lv_obj_t* g_wx_forecast = nullptr;
+static lv_obj_t* g_wx_icon_bg = nullptr;
 static lv_obj_t* g_wx_icon = nullptr;
 static lv_obj_t* g_wx_temp = nullptr;
 static lv_obj_t* g_wx_city = nullptr;
@@ -375,11 +378,13 @@ static void apply_theme() {
     lv_obj_set_style_text_color(g_lbl_weather, lv_color_hex(col_text()), 0);
     lv_obj_set_style_text_color(g_lbl_stats, lv_color_hex(col_text()), 0);
     if (g_wx_view) lv_obj_set_style_bg_color(g_wx_view, lv_color_hex(col_bg()), 0);
+    if (g_wx_icon_bg) lv_obj_set_style_bg_color(g_wx_icon_bg, lv_color_hex(col_bar()), 0);
     Ring* rings[] = { &g_ring_cpu_load, &g_ring_cpu_temp, &g_ring_ram,
                       &g_ring_gpu_load, &g_ring_gpu_temp, &g_ring_vram };
     for (Ring* r : rings) {
         if (r->arc) lv_obj_set_style_arc_color(r->arc, lv_color_hex(col_track()), LV_PART_MAIN);
     }
+    if (g_wx.valid) rebuild_weather();
 
     rebuild_pages();
     ui_set_wifi(g_wifi_connected, g_wifi_rssi);
@@ -729,34 +734,37 @@ static int wx_round(float v) {
     return (int)(v >= 0 ? v + 0.5f : v - 0.5f);
 }
 
+static uint32_t temp_color(float t) {
+    if (t <= 0) return 0x4F8CFF;
+    if (t <= 15) return 0x2ECC71;
+    if (t <= 25) return 0xF1C40F;
+    return 0xE74C3C;
+}
+
 static void rebuild_weather() {
     if (!g_wx_view || !g_wx_icon || !g_wx_days) return;
     lv_obj_clean(g_wx_icon);
     lv_obj_clean(g_wx_days);
 
     if (!g_wx.valid) {
+        if (g_wx_hero) lv_obj_add_flag(g_wx_hero, LV_OBJ_FLAG_HIDDEN);
+        if (g_wx_forecast) lv_obj_add_flag(g_wx_forecast, LV_OBJ_FLAG_HIDDEN);
         if (g_wx_msg) lv_obj_clear_flag(g_wx_msg, LV_OBJ_FLAG_HIDDEN);
-        if (g_wx_temp) lv_obj_add_flag(g_wx_temp, LV_OBJ_FLAG_HIDDEN);
-        if (g_wx_city) lv_obj_add_flag(g_wx_city, LV_OBJ_FLAG_HIDDEN);
-        if (g_wx_feels) lv_obj_add_flag(g_wx_feels, LV_OBJ_FLAG_HIDDEN);
-        if (g_wx_hum) lv_obj_add_flag(g_wx_hum, LV_OBJ_FLAG_HIDDEN);
-        if (g_wx_wind) lv_obj_add_flag(g_wx_wind, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
     if (g_wx_msg) lv_obj_add_flag(g_wx_msg, LV_OBJ_FLAG_HIDDEN);
-    if (g_wx_temp) lv_obj_clear_flag(g_wx_temp, LV_OBJ_FLAG_HIDDEN);
-    if (g_wx_city) lv_obj_clear_flag(g_wx_city, LV_OBJ_FLAG_HIDDEN);
-    if (g_wx_feels) lv_obj_clear_flag(g_wx_feels, LV_OBJ_FLAG_HIDDEN);
-    if (g_wx_hum) lv_obj_clear_flag(g_wx_hum, LV_OBJ_FLAG_HIDDEN);
-    if (g_wx_wind) lv_obj_clear_flag(g_wx_wind, LV_OBJ_FLAG_HIDDEN);
+    if (g_wx_hero) lv_obj_clear_flag(g_wx_hero, LV_OBJ_FLAG_HIDDEN);
+    if (g_wx_forecast) lv_obj_clear_flag(g_wx_forecast, LV_OBJ_FLAG_HIDDEN);
 
-    wx_draw(g_wx_icon, g_wx.code, 48);
+    wx_draw(g_wx_icon, g_wx.code, 56);
 
     char buf[48];
     snprintf(buf, sizeof(buf), "%+d C", wx_round(g_wx.temp));
     lv_label_set_text(g_wx_temp, buf);
-    snprintf(buf, sizeof(buf), "feels %+d C", wx_round(g_wx.feels));
+    lv_obj_set_style_text_color(g_wx_temp, lv_color_hex(temp_color(g_wx.temp)), 0);
+
+    snprintf(buf, sizeof(buf), "Feels %+d C", wx_round(g_wx.feels));
     lv_label_set_text(g_wx_feels, buf);
     snprintf(buf, sizeof(buf), "Humidity %d%%", g_wx.humidity);
     lv_label_set_text(g_wx_hum, buf);
@@ -768,19 +776,31 @@ static void rebuild_weather() {
         lv_obj_t* col = lv_obj_create(g_wx_days);
         lv_obj_remove_style_all(col);
         lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_size(col, 44, 94);
+        lv_obj_set_size(col, 42, 88);
+        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_all(col, 0, 0);
+        lv_obj_set_style_pad_row(col, 2, 0);
+
+        if (i == 0) {
+            lv_obj_set_style_bg_opa(col, LV_OPA_20, 0);
+            lv_obj_set_style_bg_color(col, lv_color_hex(col_sel()), 0);
+            lv_obj_set_style_radius(col, 8, 0);
+        } else {
+            lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, 0);
+        }
 
         lv_obj_t* d = lv_label_create(col);
         lv_label_set_text(d, g_wx.days[i].date.c_str());
-        lv_obj_add_style(d, &st_dim, 0);
-        lv_obj_set_style_text_font(d, &lv_font_montserrat_12, 0);
-        lv_obj_set_width(d, 44);
+        if (i == 0) lv_obj_set_style_text_color(d, lv_color_hex(col_sel()), 0);
+        else lv_obj_add_style(d, &st_dim, 0);
+        lv_obj_set_style_text_font(d, &lv_font_montserrat_10, 0);
+        lv_obj_set_width(d, 42);
         lv_obj_set_style_text_align(d, LV_TEXT_ALIGN_CENTER, 0);
 
         lv_obj_t* ic = lv_obj_create(col);
         lv_obj_remove_style_all(ic);
         lv_obj_clear_flag(ic, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_pos(ic, 9, 16);
         lv_obj_set_size(ic, 26, 26);
         wx_draw(ic, g_wx.days[i].code, 26);
 
@@ -790,10 +810,9 @@ static void rebuild_weather() {
         lv_obj_t* tm = lv_label_create(col);
         lv_label_set_text(tm, t);
         lv_obj_add_style(tm, &st_text, 0);
-        lv_obj_set_style_text_font(tm, &lv_font_montserrat_12, 0);
-        lv_obj_set_width(tm, 44);
+        lv_obj_set_style_text_font(tm, &lv_font_montserrat_10, 0);
+        lv_obj_set_width(tm, 42);
         lv_obj_set_style_text_align(tm, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_pos(tm, 0, 50);
     }
 }
 
@@ -1029,49 +1048,82 @@ static void build_weather_view() {
     lv_obj_set_style_border_width(g_wx_view, 0, 0);
     lv_obj_set_style_pad_all(g_wx_view, 0, 0);
 
-    g_wx_icon = lv_obj_create(g_wx_view);
+    // Current weather card.
+    g_wx_hero = lv_obj_create(g_wx_view);
+    lv_obj_clear_flag(g_wx_hero, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(g_wx_hero, 6, 4);
+    lv_obj_set_size(g_wx_hero, 308, 104);
+    lv_obj_add_style(g_wx_hero, &st_card, 0);
+    lv_obj_set_style_radius(g_wx_hero, 12, 0);
+    lv_obj_set_style_pad_all(g_wx_hero, 0, 0);
+    lv_obj_set_style_shadow_width(g_wx_hero, 0, 0);
+
+    g_wx_icon_bg = lv_obj_create(g_wx_hero);
+    lv_obj_remove_style_all(g_wx_icon_bg);
+    lv_obj_clear_flag(g_wx_icon_bg, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(g_wx_icon_bg, 10, 16);
+    lv_obj_set_size(g_wx_icon_bg, 64, 64);
+    lv_obj_set_style_radius(g_wx_icon_bg, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(g_wx_icon_bg, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(g_wx_icon_bg, lv_color_hex(col_bar()), 0);
+
+    g_wx_icon = lv_obj_create(g_wx_icon_bg);
     lv_obj_remove_style_all(g_wx_icon);
     lv_obj_clear_flag(g_wx_icon, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_pos(g_wx_icon, 10, 8);
-    lv_obj_set_size(g_wx_icon, 52, 52);
+    lv_obj_set_size(g_wx_icon, 56, 56);
+    lv_obj_center(g_wx_icon);
 
-    g_wx_temp = lv_label_create(g_wx_view);
+    g_wx_temp = lv_label_create(g_wx_hero);
     lv_obj_add_style(g_wx_temp, &st_text, 0);
     lv_obj_set_style_text_font(g_wx_temp, &lv_font_montserrat_28, 0);
-    lv_obj_set_pos(g_wx_temp, 72, 4);
+    lv_obj_set_pos(g_wx_temp, 86, 8);
 
-    g_wx_city = lv_label_create(g_wx_view);
+    g_wx_city = lv_label_create(g_wx_hero);
     lv_label_set_text(g_wx_city, "Novosibirsk");
     lv_obj_add_style(g_wx_city, &st_text, 0);
     lv_obj_set_style_text_font(g_wx_city, &lv_font_montserrat_16, 0);
-    lv_obj_set_pos(g_wx_city, 72, 40);
+    lv_obj_set_pos(g_wx_city, 86, 42);
 
-    g_wx_feels = lv_label_create(g_wx_view);
+    g_wx_feels = lv_label_create(g_wx_hero);
     lv_obj_add_style(g_wx_feels, &st_dim, 0);
-    lv_obj_set_pos(g_wx_feels, 72, 62);
+    lv_obj_set_pos(g_wx_feels, 86, 64);
 
-    g_wx_hum = lv_label_create(g_wx_view);
+    g_wx_hum = lv_label_create(g_wx_hero);
     lv_obj_add_style(g_wx_hum, &st_dim, 0);
-    lv_obj_set_pos(g_wx_hum, 10, 76);
+    lv_obj_set_style_text_font(g_wx_hum, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(g_wx_hum, 86, 84);
 
-    g_wx_wind = lv_label_create(g_wx_view);
+    g_wx_wind = lv_label_create(g_wx_hero);
     lv_obj_add_style(g_wx_wind, &st_dim, 0);
-    lv_obj_set_pos(g_wx_wind, 10, 94);
+    lv_obj_set_style_text_font(g_wx_wind, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(g_wx_wind, 190, 84);
 
-    g_wx_days = lv_obj_create(g_wx_view);
+    // 7-day forecast card.
+    g_wx_forecast = lv_obj_create(g_wx_view);
+    lv_obj_clear_flag(g_wx_forecast, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(g_wx_forecast, 6, 110);
+    lv_obj_set_size(g_wx_forecast, 308, 96);
+    lv_obj_add_style(g_wx_forecast, &st_card, 0);
+    lv_obj_set_style_radius(g_wx_forecast, 12, 0);
+    lv_obj_set_style_pad_all(g_wx_forecast, 4, 0);
+    lv_obj_set_style_shadow_width(g_wx_forecast, 0, 0);
+
+    g_wx_days = lv_obj_create(g_wx_forecast);
     lv_obj_remove_style_all(g_wx_days);
-    lv_obj_set_pos(g_wx_days, 0, 112);
-    lv_obj_set_size(g_wx_days, 320, 96);
+    lv_obj_clear_flag(g_wx_days, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(g_wx_days, 0, 0);
+    lv_obj_set_size(g_wx_days, 300, 88);
     lv_obj_set_flex_flow(g_wx_days, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(g_wx_days, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_clear_flag(g_wx_days, LV_OBJ_FLAG_SCROLLABLE);
 
     g_wx_msg = lv_label_create(g_wx_view);
     lv_label_set_text(g_wx_msg, "Loading...");
     lv_obj_add_style(g_wx_msg, &st_dim, 0);
-    lv_obj_align(g_wx_msg, LV_ALIGN_TOP_MID, 0, 110);
+    lv_obj_align(g_wx_msg, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(g_wx_msg, LV_OBJ_FLAG_HIDDEN);
 
+    lv_obj_add_flag(g_wx_hero, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_wx_forecast, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(g_wx_view, LV_OBJ_FLAG_HIDDEN);
 }
 
